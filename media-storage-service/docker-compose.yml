@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"  # API MinIO
+      - "9090:9090"  # Веб-интерфейс MinIO
+    environment:
+      MINIO_ROOT_USER: minioadmin  # Логин
+      MINIO_ROOT_PASSWORD: minioadmin  # Пароль
+    volumes:
+      - minio_data:/data  # Хранилище данных
+    command: server --console-address ":9090" /data
+
+volumes:
+  minio_data:

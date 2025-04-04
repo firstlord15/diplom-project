@@ -1,10 +1,12 @@
 package org.ithub.userservice.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.ithub.userservice.enums.Role;
 
 @Data
+@AllArgsConstructor
 @NoArgsConstructor
 public class UserDto {
     private long id;

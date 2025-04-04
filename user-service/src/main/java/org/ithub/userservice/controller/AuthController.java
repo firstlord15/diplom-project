@@ -24,13 +24,13 @@ public class AuthController {
     @Operation(summary = "Регистрация пользователя")
     @PostMapping("/sign-up/user")
     public JwtAuthenticationResponse signUpUser(@RequestBody @Valid SignUpRequest request) {
-        return authenticationService.signUp(request, Role.USER);
+        return authenticationService.signUp(request, Role.ROLE_USER);
     }
 
     @Operation(summary = "Регистрация админа")
     @PostMapping("/sign-up/admin")
     public JwtAuthenticationResponse signUpAdmin(@RequestBody @Valid SignUpRequest request) {
-        return authenticationService.signUp(request, Role.ADMIN);
+        return authenticationService.signUp(request, Role.ROLE_ADMIN);
     }
 
     @Operation(summary = "Авторизация пользователя")

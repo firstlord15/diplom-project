@@ -9,7 +9,6 @@ import org.ithub.userservice.repository.UserRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -36,15 +35,15 @@ public class UserService {
     }
 
     @Deprecated
-    public void getAdmin() {
+    public UserDto getAdmin() {
         var user = getCurrentUser();
-        if (user.getRole() == Role.ADMIN) {
+        if (user.getRole() == Role.ROLE_ADMIN) {
             throw new RuntimeException("User already with the ADMIN role");
         }
 
         log.info("Current user is change role to ADMIN");
-        user.setRole(Role.ADMIN);
-        createUser(user);
+        user.setRole(Role.ROLE_ADMIN);
+        return createUser(user);
     }
 
     public void createUser(UserDto userDto, String password, Role role) {
@@ -97,6 +96,6 @@ public class UserService {
     }
 
     public UserDto mapToDto(User user) {
-        return new UserDto(user.getEmail(), user.getUsername(), user.getRole());
+        return new UserDto(user.getId(), user.getEmail(), user.getUsername(), user.getRole());
     }
 }

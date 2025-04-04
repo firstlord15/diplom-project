@@ -27,7 +27,7 @@ public class AuthenticationService {
                 role
         );
 
-        userService.createUser(userService.mapToDto(user), user.getPassword(), role);
+        userService.createUser(user);
 
         var jwt = jwtService.generateToken(user);
         return new JwtAuthenticationResponse(jwt);

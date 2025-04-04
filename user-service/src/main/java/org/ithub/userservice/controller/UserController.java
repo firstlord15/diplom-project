@@ -48,8 +48,8 @@ public class UserController {
 
     @GetMapping("/get-up")
     @Operation(summary = "Получить роль ADMIN (для демонстрации)")
-    public void getAdmin() {
-        userService.getAdmin();
+    public ResponseEntity<UserDto> getAdmin() {
+        return ResponseEntity.ok(userService.getAdmin());
     }
 
     @ExceptionHandler(RuntimeException.class)
