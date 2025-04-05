@@ -1,4 +1,4 @@
-package org.ithub.mediastorageservice.config;
+package org.ithub.mediastorageservice.config.Minio;
 
 import io.minio.MinioClient;
 import lombok.Getter;

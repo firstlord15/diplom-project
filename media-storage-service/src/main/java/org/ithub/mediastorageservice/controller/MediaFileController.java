@@ -60,7 +60,7 @@ public class MediaFileController {
     @PostMapping
     @Operation(summary = "Загрузка нового медиа-файла", description = "Загружает файл и связанные с ним метаданные")
     public ResponseEntity<MediaFileDTO> uploadMediaFile(
-            @RequestParam("file") MultipartFile file,
+            @RequestPart("file") MultipartFile file,
             @RequestPart(value = "metadata", required = false) MediaUploadRequestDTO requestDTO
     ) {
         log.info("Uploading new file: {}, size: {}", file.getOriginalFilename(), file.getSize());

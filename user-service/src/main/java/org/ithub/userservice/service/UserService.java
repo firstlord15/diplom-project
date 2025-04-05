@@ -46,13 +46,7 @@ public class UserService {
         return createUser(user);
     }
 
-    public void createUser(UserDto userDto, String password, Role role) {
-        log.info("Save user '{}' with id {}", userDto.getUsername(), userDto.getId());
-        User user = new User(userDto.getEmail(), userDto.getUsername(), password, role);
-        User savedUser = userRepository.save(user);
-    }
-
-    @Transactional
+//    @Transactional
     public UserDto createUser(User user) {
         log.info("Save user '{}' with id {}", user.getUsername(), user.getId());
         return mapToDto(userRepository.save(user));
