@@ -2,7 +2,7 @@ package org.ithub.socialintegrationservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ithub.socialintegrationservice.TelegramSender;
+import org.ithub.socialintegrationservice.util.sender.TelegramSender;
 import org.ithub.socialintegrationservice.dto.LinkSocialAccountRequest;
 import org.ithub.socialintegrationservice.dto.SendMessageRequest;
 import org.ithub.socialintegrationservice.enums.SocialPlatform;

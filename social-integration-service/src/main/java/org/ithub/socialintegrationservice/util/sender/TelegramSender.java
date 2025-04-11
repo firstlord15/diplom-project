@@ -1,4 +1,4 @@
-package org.ithub.socialintegrationservice;
+package org.ithub.socialintegrationservice.util.sender;
 
 import io.micrometer.common.lang.NonNull;
 import lombok.RequiredArgsConstructor;
