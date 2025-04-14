@@ -1,4 +1,4 @@
-package org.ithub.socialintegrationservice.dto;
+package org.ithub.postservice.dto;
 
 import lombok.Data;
 import org.ithub.socialintegrationservice.enums.SocialPlatform;

@@ -22,10 +22,20 @@ public class SocialAccount {
     private Long userId;
 
     @Enumerated(EnumType.STRING)
-    private SocialPlatform platform; // TELEGRAM, INSTAGRAM
+    private SocialPlatform platform;
 
-    private String externalId;  // chatId или userId в Instagram
-    private String accessToken; // если требуется
+    // Для Telegram это chatId, для других платформ - соответствующие идентификаторы
+    private String externalId;
+
+    // Для OAuth-платформ (Instagram, VK и т.д.)
+    private String accessToken;
+    private String refreshToken;
+    private LocalDateTime tokenExpiresAt;
+
+    // Дополнительные настройки для платформы в формате JSON
+    @Column(columnDefinition = "TEXT")
+    private String platformSettings;
 
     private LocalDateTime linkedAt;
+    private boolean active = true;
 }

@@ -2,24 +2,21 @@ package org.ithub.socialintegrationservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ithub.socialintegrationservice.util.sender.TelegramSender;
 import org.ithub.socialintegrationservice.dto.LinkSocialAccountRequest;
-import org.ithub.socialintegrationservice.dto.SendMessageRequest;
 import org.ithub.socialintegrationservice.enums.SocialPlatform;
 import org.ithub.socialintegrationservice.model.SocialAccount;
 import org.ithub.socialintegrationservice.repository.SocialAccountRepository;
 import org.ithub.socialintegrationservice.util.converter.StringToSocialPlatformConverter;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SocialAccountService {
     private final SocialAccountRepository repository;
-    private final TelegramSender telegramSender;
     private final StringToSocialPlatformConverter converter;
 
     public SocialAccount linkAccount(LinkSocialAccountRequest request) {
@@ -59,41 +56,26 @@ public class SocialAccountService {
         repository.delete(getAccount(userId, platform));
     }
 
-    public void sendMessage(SendMessageRequest request) {
-        SocialAccount account = getAccount(request.getUserId(), request.getPlatform());
-
-        switch (request.getPlatform()) {
-            case TELEGRAM -> {
-                try {
-                    telegramSender.sendMessage(account.getExternalId(), request.getMessage());
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to send Telegram message: " + e.getMessage(), e);
-                }
-            }
-            case INSTAGRAM -> throw new UnsupportedOperationException("Instagram not yet supported");
-            default -> throw new IllegalArgumentException("Unknown platform: " + request.getPlatform());
-        }
+    public List<SocialAccount> getActiveAccountsForUser(Long userId) {
+        return repository.findByUserIdAndActiveTrue(userId);
     }
 
-    public void sendMessage(SendMessageRequest request, MultipartFile file) {
-        SocialAccount account = getAccount(request.getUserId(), request.getPlatform());
-
-        switch (request.getPlatform()) {
-            case TELEGRAM -> {
-                try {
-                    String contentType = file.getContentType();
-                    if (contentType.startsWith("image/")) {
-                        telegramSender.sendPhoto(account.getExternalId(), file, request.getMessage());
-                    } else {
-                        telegramSender.sendDocument(account.getExternalId(), file, request.getMessage());
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to send file to Telegram: " + e.getMessage(), e);
-                }
-            }
-            case INSTAGRAM -> throw new UnsupportedOperationException("Instagram not yet supported");
-            default -> throw new IllegalArgumentException("Unknown platform: " + request.getPlatform());
-        }
+    public List<SocialAccount> getAccountsByPlatform(Long userId, SocialPlatform platform) {
+        return repository.findByUserIdAndPlatformAndActiveTrue(userId, platform);
     }
 
+    public List<SocialAccount> getAccountsByPlatform(Long userId, String platformStr) {
+        SocialPlatform platform = SocialPlatform.valueOf(platformStr.toUpperCase());
+        return getAccountsByPlatform(userId, platform);
+    }
+
+    public SocialAccount refreshToken(Long accountId) {
+        SocialAccount account = repository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Аккаунт не найден"));
+
+        // Реализовать логику обновления токена, специфичную для платформы
+        // Это будет вызывать соответствующие OAuth эндпоинты
+
+        return repository.save(account);
+    }
 }
