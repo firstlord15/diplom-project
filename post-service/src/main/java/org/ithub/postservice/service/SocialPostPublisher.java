@@ -5,8 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.ithub.postservice.client.MediaStorageClient;
-import org.ithub.postservice.client.SocialAccountClient;
-import org.ithub.postservice.client.SocialPublishClient;
+import org.ithub.postservice.client.SocialClient;
 import org.ithub.postservice.convert.Convert;
 import org.ithub.postservice.dto.MediaFileDto;
 import org.ithub.postservice.dto.PostResponseDto;
@@ -22,7 +21,10 @@ import org.ithub.postservice.repository.SocialPostTaskRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
@@ -41,13 +43,12 @@ import java.util.Optional;
 public class SocialPostPublisher {
     private final Convert convert;
     private final SocialPostTaskRepository socialPostTaskRepository;
-    private final SocialPublishClient socialPublishClient;
-    private final SocialAccountClient socialAccountClient;
+    private final SocialClient socialClient;
     private final RestTemplate restTemplate = new RestTemplate();
     private final MediaStorageClient mediaStorageClient;
     private final PostRepository postRepository;
 
-    @Value("integration.social.service.url")
+    @Value("${integration.social.service.url}")
     private String socialServiceUrl;
 
     @Transactional
@@ -67,9 +68,10 @@ public class SocialPostPublisher {
 
             try {
                 // Получаем данные социального аккаунта
-                List<SocialAccountDto> accounts = socialAccountClient.getAccountsByPlatform(
+                List<SocialAccountDto> accounts = socialClient.getAccountsByPlatform(
                         post.getAuthorId(), task.getPlatform().toString()
                 );
+                log.info("Получаем активные аккаунты: {}", accounts);
 
                 if (accounts.isEmpty()) {
                     throw new RuntimeException("No active social account found for platform: " + task.getPlatform());
@@ -157,7 +159,7 @@ public class SocialPostPublisher {
                 request.setText(post.getContent());
 
                 // Вызов social-integration-service через REST
-                Map<String, Boolean> response = socialPublishClient.publishText(request);
+                Map<String, Boolean> response = socialClient.publishText(request);
 
                 boolean success = response.isEmpty() && Boolean.TRUE.equals(response.get("success"));
                 if (success) {

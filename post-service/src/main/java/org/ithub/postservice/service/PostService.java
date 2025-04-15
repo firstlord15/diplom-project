@@ -3,7 +3,7 @@ package org.ithub.postservice.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ithub.postservice.client.MediaStorageClient;
-import org.ithub.postservice.client.SocialAccountClient;
+import org.ithub.postservice.client.SocialClient;
 import org.ithub.postservice.convert.Convert;
 import org.ithub.postservice.dto.MediaFileDto;
 import org.ithub.postservice.dto.PostRequestDto;
@@ -40,7 +40,7 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final SocialPostTaskRepository socialPostTaskRepository;
     private final SocialPostPublisher socialPostPublisher;
-    private final SocialAccountClient socialAccountClient;
+    private final SocialClient socialClient;
 
     @Transactional
     public PostResponseDto createPost(Long userId, PostRequestDto postRequestDto) {
@@ -118,7 +118,7 @@ public class PostService {
         for (Long accountId : socialAccountIds) {
             try {
                 // Получаем информацию о социальном аккаунте, чтобы узнать платформу
-                List<SocialAccountDto> accounts = socialAccountClient.getActiveAccounts(post.getAuthorId());
+                List<SocialAccountDto> accounts = socialClient.getActiveAccounts(post.getAuthorId());
 
                 Optional<SocialAccountDto> accountOpt = accounts.stream()
                         .filter(acc -> acc.getId().equals(accountId))
