@@ -6,7 +6,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "media-storage-service")
+@FeignClient(name = "media-storage-service", fallback = MediaStorageClientFallback.class)
 public interface MediaStorageClient {
     @GetMapping("/media/files/{id}")
     MediaFileDto getMediaFileDetails(@PathVariable Long id);

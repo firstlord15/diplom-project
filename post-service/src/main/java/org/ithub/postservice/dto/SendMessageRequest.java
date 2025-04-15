@@ -1,7 +1,7 @@
 package org.ithub.postservice.dto;
 
 import lombok.Data;
-import org.ithub.socialintegrationservice.enums.SocialPlatform;
+import org.ithub.postservice.enums.SocialPlatform;
 import org.springframework.web.multipart.MultipartFile;
 
 @Data

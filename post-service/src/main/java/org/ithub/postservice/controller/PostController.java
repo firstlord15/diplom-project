@@ -1,18 +1,17 @@
 package org.ithub.postservice.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ithub.postservice.dto.PostRequestDto;
 import org.ithub.postservice.dto.PostResponseDto;
-import org.ithub.postservice.dto.SendMessageRequest;
 import org.ithub.postservice.enums.PostStatus;
 import org.ithub.postservice.service.PostService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +26,7 @@ public class PostController {
     @Operation(summary = "Создание нового поста")
     public ResponseEntity<PostResponseDto> createPost(
             @RequestHeader("X-User-Id") Long userId,
-            @RequestBody PostRequestDto requestDto) {
+            @RequestBody @Valid PostRequestDto requestDto) {
         log.info("Creating post for user {}", userId);
         return new ResponseEntity<>(postService.createPost(userId, requestDto), HttpStatus.CREATED);
     }
@@ -80,17 +79,5 @@ public class PostController {
     public ResponseEntity<PostResponseDto> publishPost(@PathVariable Long id) {
         log.info("Publishing post with id {}", id);
         return ResponseEntity.ok(postService.publishPost(id));
-    }
-
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
-        log.error("Error processing request", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<String> handleIllegalStateException(IllegalStateException ex) {
-        log.error("Invalid state", ex);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 }

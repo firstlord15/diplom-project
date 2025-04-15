@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Builder
-@Table(name = "posts")
+@Table(name = "social_post_tasks")
 @AllArgsConstructor
 @NoArgsConstructor
 public class SocialPostTask {

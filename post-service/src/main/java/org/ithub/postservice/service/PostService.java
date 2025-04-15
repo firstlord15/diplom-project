@@ -13,6 +13,8 @@ import org.ithub.postservice.model.SocialPostTask;
 import org.ithub.postservice.repository.PostMediaRepository;
 import org.ithub.postservice.repository.PostRepository;
 import org.ithub.postservice.repository.SocialPostTaskRepository;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreaker;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final SocialPostTaskRepository socialPostTaskRepository;
     private final SocialPostPublisher socialPostPublisher;
+    private final CircuitBreakerFactory circuitBreakerFactory;
 
     @Transactional
     public PostResponseDto createPost(Long userId, PostRequestDto postRequestDto) {
@@ -44,6 +47,7 @@ public class PostService {
                 .title(postRequestDto.getTitle())
                 .content(postRequestDto.getContent())
                 .type(determinePostType(postRequestDto))
+                .socialTasks(new ArrayList<>())
                 .status(status)
                 .tags(postRequestDto.getTags())
                 .scheduledAt(postRequestDto.getScheduledAt())
@@ -58,7 +62,7 @@ public class PostService {
         }
 
         // Публикуем сразу, если не запланировано
-        if (savedPost.getStatus() != PostStatus.SCHEDULED && !savedPost.getSocialTasks().isEmpty()) {
+        if (savedPost.getStatus() != PostStatus.SCHEDULED && !savedPost.getSocialTasks().isEmpty() ) {
             socialPostPublisher.publishPost(savedPost.getId());
             savedPost.setStatus(PostStatus.PUBLISHED);
             savedPost.setPublishedAt(LocalDateTime.now());
@@ -280,11 +284,23 @@ public class PostService {
                 .build();
 
         // Загружаем детали медиафайла
+        CircuitBreaker circuitBreaker = circuitBreakerFactory.create("mediaStorage");
         try {
-            MediaFileDto mediaFile = mediaStorageClient.getMediaFileDetails(media.getMediaId());
+            MediaFileDto mediaFile = circuitBreaker.run(
+                    () -> mediaStorageClient.getMediaFileDetails(media.getMediaId()),
+                    throwable -> {
+                        log.error("Error fetching media details for ID {}: {}", media.getMediaId(), throwable.getMessage());
+                        return MediaFileDto.builder()
+                                .id(media.getMediaId())
+                                .originalFilename("unavailable.file")
+                                .mediaType("unknown")
+                                .mimeType("application/octet-stream")
+                                .build();
+                    }
+            );
             dto.setMediaDetails(mediaFile);
         } catch (Exception e) {
-            log.error("Error fetching media details for ID {}: {}", media.getMediaId(), e.getMessage());
+            log.error("Circuit breaker executed fallback for media ID {}: {}", media.getMediaId(), e.getMessage());
         }
 
         return dto;
