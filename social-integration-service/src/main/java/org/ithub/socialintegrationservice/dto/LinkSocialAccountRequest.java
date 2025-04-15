@@ -9,5 +9,6 @@ public class LinkSocialAccountRequest {
     private String externalId;
     private SocialPlatform platform;
     private String accessToken;
+    private boolean active;
 }
 

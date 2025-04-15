@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class TelegramService {
-
     private final TelegramClient telegramClient;
     private final SocialAccountService accountService;
 

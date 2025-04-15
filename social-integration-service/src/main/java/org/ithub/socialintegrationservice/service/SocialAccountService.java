@@ -20,22 +20,21 @@ public class SocialAccountService {
     private final StringToSocialPlatformConverter converter;
 
     public SocialAccount linkAccount(LinkSocialAccountRequest request) {
-        SocialAccount socialAccount = getAccount(request.getUserId(), request.getPlatform());
+        SocialAccount account = new SocialAccount();
+        try {
+            account = getAccount(request.getUserId(), request.getPlatform());
+        } catch (Exception e) {
+            log.info("Linked account {}, for user with id {}",
+                    request.getExternalId(), request.getUserId());
 
-        if (socialAccount != null) {
-            throw new RuntimeException("Account is already linked to this platform.");
+            account = SocialAccount.builder()
+                    .userId(request.getUserId())
+                    .externalId(request.getExternalId())
+                    .accessToken(request.getAccessToken())
+                    .platform(request.getPlatform())
+                    .linkedAt(LocalDateTime.now())
+                    .build();
         }
-
-        log.info("Linked account {}, for user with id {}",
-                request.getExternalId(), request.getUserId());
-
-        SocialAccount account = SocialAccount.builder()
-                .userId(request.getUserId())
-                .externalId(request.getExternalId())
-                .accessToken(request.getAccessToken())
-                .platform(request.getPlatform())
-                .linkedAt(LocalDateTime.now())
-                .build();
 
         return repository.save(account);
     }

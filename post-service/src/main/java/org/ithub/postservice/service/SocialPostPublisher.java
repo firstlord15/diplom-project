@@ -1,14 +1,18 @@
 package org.ithub.postservice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micrometer.common.lang.NonNull;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.ithub.postservice.client.MediaStorageClient;
-import org.ithub.postservice.client.SocialIntegrationClient;
+import org.ithub.postservice.client.SocialAccountClient;
+import org.ithub.postservice.client.SocialPublishClient;
+import org.ithub.postservice.convert.Convert;
 import org.ithub.postservice.dto.MediaFileDto;
+import org.ithub.postservice.dto.PostResponseDto;
+import org.ithub.postservice.dto.PublishTextRequest;
 import org.ithub.postservice.dto.SocialAccountDto;
+import org.ithub.postservice.enums.PostStatus;
 import org.ithub.postservice.enums.TaskStatus;
 import org.ithub.postservice.model.Post;
 import org.ithub.postservice.model.PostMedia;
@@ -18,40 +22,36 @@ import org.ithub.postservice.repository.SocialPostTaskRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SocialPostPublisher {
+    private final Convert convert;
     private final SocialPostTaskRepository socialPostTaskRepository;
-    private final SocialIntegrationClient socialIntegrationClient;
+    private final SocialPublishClient socialPublishClient;
+    private final SocialAccountClient socialAccountClient;
+    private final RestTemplate restTemplate = new RestTemplate();
     private final MediaStorageClient mediaStorageClient;
     private final PostRepository postRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${telegram.bot-token}")
-    private String botToken;
-
-    private String telegramApiUrl(String method) {
-        return "https://api.telegram.org/bot" + botToken + "/" + method;
-    }
+    @Value("integration.social.service.url")
+    private String socialServiceUrl;
 
     @Transactional
-    public boolean publishPost(Long postId) {
+    public PostResponseDto publishPost(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
 
@@ -67,8 +67,9 @@ public class SocialPostPublisher {
 
             try {
                 // Получаем данные социального аккаунта
-                List<SocialAccountDto> accounts = socialIntegrationClient.getAccountsByPlatform(
-                        post.getAuthorId(), task.getPlatform().toString());
+                List<SocialAccountDto> accounts = socialAccountClient.getAccountsByPlatform(
+                        post.getAuthorId(), task.getPlatform().toString()
+                );
 
                 if (accounts.isEmpty()) {
                     throw new RuntimeException("No active social account found for platform: " + task.getPlatform());
@@ -87,7 +88,6 @@ public class SocialPostPublisher {
 
                 // Публикуем пост в социальную сеть
                 boolean success = publishToSocialPlatform(post, task, account);
-
                 if (success) {
                     task.setStatus(TaskStatus.COMPLETED);
                     task.setExecutedAt(LocalDateTime.now());
@@ -105,134 +105,39 @@ public class SocialPostPublisher {
 
             socialPostTaskRepository.save(task);
         }
-
-        return allSuccess;
-    }
-
-    private boolean sendTelegramTextMessage(String chatId, String text, SocialPostTask task) {
-        String url = telegramApiUrl("sendMessage");
-
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("chat_id", chatId);
-        params.add("text", text);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                // Здесь можно распарсить ответ, чтобы получить message_id для externalPostId
-                task.setExternalPostId("telegram_" + System.currentTimeMillis());
-                return true;
-            } else {
-                task.setErrorMessage("Telegram API error: " + response.getBody());
-                return false;
+        if (allSuccess) {
+            if (post.getStatus() != PostStatus.PUBLISHED) {
+                post.setStatus(PostStatus.PUBLISHED);
             }
-        } catch (Exception e) {
-            task.setErrorMessage("Error sending message to Telegram: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private boolean sendTelegramMedia(String chatId, Resource media, String caption,
-                                      SocialPostTask task, String method, String fileFieldName) {
-        int messageId = sendFile(chatId, media, caption, method, fileFieldName);
-
-        if (messageId > 0) { // -1 или 0 означают ошибку
-            // Обновляем информацию в задаче
-            task.setExternalPostId(String.valueOf(messageId));
-
-            // Создаем URL для публичных каналов/групп
-            if (chatId.startsWith("-100")) { // Публичный канал/группа
-                String publicChatId = chatId.substring(4); // Убираем "-100" префикс
-                task.setExternalPostUrl("https://t.me/c/" + publicChatId + "/" + messageId);
-            }
-            return true;
+            post.setPublishedAt(LocalDateTime.now());
         } else {
-            // Устанавливаем сообщение об ошибке
-            task.setErrorMessage("Failed to send " + fileFieldName + " to Telegram");
-            return false;
+            post.setStatus(PostStatus.FAILED);
         }
+
+        Post savedPost = postRepository.save(post);
+        return convert.convertToResponseDto(savedPost);
     }
 
-    // Универсальный метод отправки файла
-    private int sendFile(String chatId, Resource file, String caption, String method, String fileFieldName) {
-        if (file == null) {
-            log.error("File resource is null");
-            return -1;
-        }
-
-        try {
-            // Читаем содержимое ресурса в байтовый массив
-            byte[] fileBytes = StreamUtils.copyToByteArray(file.getInputStream());
-
-            // Создаем ресурс из байтового массива
-            ByteArrayResource fileResource = new ByteArrayResource(fileBytes) {
-                @Override
-                @NonNull
-                public String getFilename() {
-                    return file.getFilename().isEmpty() ? file.getFilename() : "file";
-                }
-            };
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("chat_id", chatId);
-            if (caption != null && !caption.isEmpty()) body.add("caption", caption);
-            body.add(fileFieldName, fileResource);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    telegramApiUrl(method), requestEntity, String.class
-            );
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                log.debug("Successfully sent file to Telegram chat {}", chatId);
-                return parseMessageIdFromResponse(response.getBody());
-            } else {
-                log.error("Failed to send file to Telegram. Status: {}, Response: {}",
-                        response.getStatusCode(), response.getBody());
-                return -1;
-            }
-        } catch (Exception e) {
-            log.error("Failed to send file via Telegram", e);
-            return -1;
-        }
-    }
-
-    private int parseMessageIdFromResponse(String jsonResponse) {
-        if (jsonResponse == null || jsonResponse.isEmpty()) {
-            log.error("Empty JSON response from Telegram");
-            return 0;
-        }
-
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(jsonResponse);
-
-            if (rootNode.has("ok") && rootNode.get("ok").asBoolean() &&
-                    rootNode.has("result") && rootNode.get("result").has("message_id")) {
-                return rootNode.get("result").get("message_id").asInt();
-            } else {
-                log.warn("Message ID not found in Telegram response: {}", jsonResponse);
-                return 0;
-            }
-        } catch (Exception e) {
-            log.error("Error parsing Telegram response: {}", e.getMessage());
-            return 0;
-        }
-    }
-
-    private boolean publishToInstagram(Post post, SocialPostTask task, SocialAccountDto account) {
-        // Реализация публикации в Instagram
-        return true; // Заглушка
-    }
+    // для чего
+//    private boolean sendTelegramMedia(String chatId, Resource media, String caption, SocialPostTask task, String method, String fileFieldName) {
+//        int messageId = sendFile(chatId, media, caption, method, fileFieldName);
+//
+//        if (messageId > 0) { // -1 или 0 означают ошибку
+//            // Обновляем информацию в задаче
+//            task.setExternalPostId(String.valueOf(messageId));
+//
+//            // Создаем URL для публичных каналов/групп
+//            if (chatId.startsWith("-100")) { // Публичный канал/группа
+//                String publicChatId = chatId.substring(4); // Убираем "-100" префикс
+//                task.setExternalPostUrl("https://t.me/c/" + publicChatId + "/" + messageId);
+//            }
+//            return true;
+//        } else {
+//            // Устанавливаем сообщение об ошибке
+//            task.setErrorMessage("Failed to send " + fileFieldName + " to Telegram");
+//            return false;
+//        }
+//    }
 
     private boolean publishToSocialPlatform(Post post, SocialPostTask task, SocialAccountDto account) {
         return switch (task.getPlatform()) {
@@ -244,38 +149,95 @@ public class SocialPostPublisher {
 
     private boolean publishToTelegram(Post post, SocialPostTask task, SocialAccountDto account) {
         try {
-            String chatId = account.getExternalId();
-
             if (post.getMedia().isEmpty()) {
-                // Текстовый пост
-                return sendTelegramTextMessage(chatId, post.getContent(), task);
+                // Текстовый пост - используем social-integration-service
+                PublishTextRequest request = new PublishTextRequest();
+                request.setUserId(post.getAuthorId());
+                request.setPlatform(task.getPlatform());
+                request.setText(post.getContent());
+
+                // Вызов social-integration-service через REST
+                Map<String, Boolean> response = socialPublishClient.publishText(request);
+
+                boolean success = response.isEmpty() && Boolean.TRUE.equals(response.get("success"));
+                if (success) {
+                    // Добавляем дополнительную информацию о публикации
+                    task.setExternalPostId("telegram_" + System.currentTimeMillis());
+                }
+                return success;
             } else {
                 // Пост с медиа
                 PostMedia firstMedia = post.getMedia().get(0);
                 MediaFileDto mediaFile = mediaStorageClient.getMediaFileDetails(firstMedia.getMediaId());
                 Resource mediaContent = mediaStorageClient.getMediaContent(firstMedia.getMediaId());
 
-                // Формируем текст
+                // Конвертируем Resource в byte[]
+                byte[] fileContent;
+                try (InputStream is = mediaContent.getInputStream()) {
+                    fileContent = IOUtils.toByteArray(is);
+                }
+
+                // Создаем MultiValueMap для multipart запроса
+                MultiValueMap<String, Object> bodyMap = new LinkedMultiValueMap<>();
+
+                // Добавляем файл
+                ByteArrayResource fileResource = new ByteArrayResource(fileContent) {
+                    @Override
+                    @NonNull
+                    public String getFilename() {
+                        return mediaFile.getOriginalFilename() != null ? mediaFile.getOriginalFilename() : "attachment";
+                    }
+                };
+                bodyMap.add("file", fileResource);
+
+                // Добавляем остальные параметры
+                bodyMap.add("userId", post.getAuthorId().toString());
+                bodyMap.add("platform", task.getPlatform().toString());
+
+                // Добавляем подпись, если есть
                 String caption = post.getContent();
-                if (caption.length() > 1024) {
-                    caption = caption.substring(0, 1021) + "...";
+                if (caption != null && !caption.isEmpty()) {
+                    if (caption.length() > 1024) {
+                        caption = caption.substring(0, 1021) + "...";
+                    }
+                    bodyMap.add("caption", caption);
                 }
 
-                // Определяем тип файла и отправляем соответствующим методом
-                String mimeType = mediaFile.getMimeType();
+                // Настраиваем заголовки
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-                if (mimeType.startsWith("image/")) {
-                    return sendFile(chatId, mediaContent, caption, "sendPhoto", "photo") > -1;
-                } else if (mimeType.startsWith("video/")) {
-                    return sendFile(chatId, mediaContent, caption, "sendVideo", "video") > -1;
-                } else {
-                    return sendFile(chatId, mediaContent, caption, "sendDocument", "document") > -1;
+                // Создаем запрос
+                HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(bodyMap, headers);
+
+                // Отправляем запрос в social-integration-service
+                ResponseEntity<Map> response = restTemplate.postForEntity(
+                        socialServiceUrl + "/social/publish/media",
+                        requestEntity,
+                        Map.class
+                );
+
+                response.getBody();
+                boolean success = Boolean.TRUE.equals(response.getBody().get("success"));
+                if (success) {
+                    task.setExternalPostId("telegram_media_" + System.currentTimeMillis());
+                    if (response.getBody().containsKey("url")) {
+                        task.setExternalPostUrl((String) response.getBody().get("url"));
+                    }
                 }
+
+                return success;
             }
         } catch (Exception e) {
-            log.error("Error publishing to Telegram: {}", e.getMessage());
+            log.error("Error publishing to Telegram: {}", e.getMessage(), e);
             task.setErrorMessage("Error publishing to Telegram: " + e.getMessage());
             return false;
         }
+    }
+
+
+    private boolean publishToInstagram(Post post, SocialPostTask task, SocialAccountDto account) {
+        // Реализация публикации в Instagram
+        return true; // Заглушка
     }
 }

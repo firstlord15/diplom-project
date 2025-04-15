@@ -1,5 +1,6 @@
 package org.ithub.postservice.client;
 
+import org.ithub.postservice.client.fallback.MediaStorageClientFallback;
 import org.ithub.postservice.dto.MediaFileDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.core.io.Resource;

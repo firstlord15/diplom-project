@@ -2,6 +2,7 @@ package org.ithub.socialintegrationservice.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -18,11 +19,10 @@ import java.io.IOException;
 @Slf4j
 @Component
 public class TelegramClient {
-
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${telegram.bot.token}")
+    @Value("${telegram.bot-token}")
     private String botToken;
 
     private String getApiUrl(String method) {
@@ -72,6 +72,7 @@ public class TelegramClient {
             // Создаем ресурс из байтового массива
             ByteArrayResource fileResource = new ByteArrayResource(fileBytes) {
                 @Override
+                @NonNull
                 public String getFilename() {
                     return file.getFilename() != null ? file.getFilename() : "file";
                 }

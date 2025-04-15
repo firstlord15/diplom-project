@@ -8,6 +8,7 @@ import org.ithub.postservice.dto.PostRequestDto;
 import org.ithub.postservice.dto.PostResponseDto;
 import org.ithub.postservice.enums.PostStatus;
 import org.ithub.postservice.service.PostService;
+import org.ithub.postservice.service.SocialPostPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PostController {
     private final PostService postService;
+    private final SocialPostPublisher publisher;
 
     @PostMapping
     @Operation(summary = "Создание нового поста")
@@ -78,6 +80,6 @@ public class PostController {
     @Operation(summary = "Публикация поста")
     public ResponseEntity<PostResponseDto> publishPost(@PathVariable Long id) {
         log.info("Publishing post with id {}", id);
-        return ResponseEntity.ok(postService.publishPost(id));
+        return ResponseEntity.ok(publisher.publishPost(id));
     }
 }

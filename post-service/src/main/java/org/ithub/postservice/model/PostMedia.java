@@ -18,7 +18,7 @@ public class PostMedia {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
@@ -27,8 +27,6 @@ public class PostMedia {
 
     @Column(nullable = false)
     private Long mediaId; // ID из media-storage-service
-
     private String caption;
-
     private Integer sortOrder;
 }
