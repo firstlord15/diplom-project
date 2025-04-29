@@ -36,6 +36,15 @@ public class User implements UserDetails {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
+    @Column
+    private String website;
+
+    @Column
+    private String location;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;

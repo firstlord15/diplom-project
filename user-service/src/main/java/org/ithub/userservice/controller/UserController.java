@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ithub.userservice.dto.UserDto;
+import org.ithub.userservice.model.User;
 import org.ithub.userservice.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +24,12 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    @GetMapping("")
+    @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
@@ -62,5 +64,17 @@ public class UserController {
         Map<String, String> response = new HashMap<>();
         response.put("error", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @GetMapping("/current")
+    public ResponseEntity<User> getCurrentUser() {
+        User currentUser = userService.getCurrentUser();
+        return ResponseEntity.ok(currentUser);
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<UserDto> updateProfile(@RequestBody UserDto userDto) {
+        User currentUser = userService.getCurrentUser();
+        return ResponseEntity.ok(userService.updateUserProfile(currentUser.getId(), userDto));
     }
 }

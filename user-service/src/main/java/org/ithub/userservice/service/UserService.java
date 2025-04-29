@@ -6,6 +6,8 @@ import org.ithub.userservice.dto.UserDto;
 import org.ithub.userservice.enums.Role;
 import org.ithub.userservice.model.User;
 import org.ithub.userservice.repository.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -28,7 +30,6 @@ public class UserService {
     }
 
     public User getCurrentUser() {
-        // Получение имени пользователя из контекста Spring Security
         log.info("Get current user");
         var username = SecurityContextHolder.getContext().getAuthentication().getName();
         return getByUsername(username);
@@ -67,6 +68,46 @@ public class UserService {
     }
 
     @Transactional
+    public UserDto updateUserProfile(Long userId, UserDto userDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Обновляем только разрешенные поля
+        if (userDto.getBio() != null) {
+            user.setBio(userDto.getBio());
+        }
+
+        if (userDto.getWebsite() != null) {
+            user.setWebsite(userDto.getWebsite());
+        }
+
+        if (userDto.getLocation() != null) {
+            user.setLocation(userDto.getLocation());
+        }
+
+        // Обновляем email и username только если они изменились и не конфликтуют
+        if (userDto.getEmail() != null && !userDto.getEmail().equals(user.getEmail())) {
+            // Проверка на уникальность email
+            if (userRepository.existsByEmail(userDto.getEmail())) {
+                throw new IllegalStateException("Email already in use");
+            }
+            user.setEmail(userDto.getEmail());
+        }
+
+        if (userDto.getUsername() != null && !userDto.getUsername().equals(user.getUsername())) {
+            // Проверка на уникальность username
+            if (userRepository.existsByUsername(userDto.getUsername())) {
+                throw new IllegalStateException("Username already in use");
+            }
+            user.setUsername(userDto.getUsername());
+        }
+
+        User updatedUser = userRepository.save(user);
+        return mapToDto(updatedUser);
+    }
+
+    @Transactional
+    @CacheEvict(value = "userCache", key = "#user.username")
     public UserDto updateUser(Long id, UserDto userDto) {
         log.info("Update user '{}' with id {}", userDto.getUsername(), userDto.getId());
         User user = userRepository.findById(id)
@@ -77,10 +118,11 @@ public class UserService {
         return mapToDto(updatedUser);
     }
 
+    @Cacheable(value = "userCache", key = "#username")
     public User getByUsername(String username) {
         log.info("Get user with username {}", username);
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Users not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 
     @Transactional
@@ -90,6 +132,14 @@ public class UserService {
     }
 
     public UserDto mapToDto(User user) {
-        return new UserDto(user.getId(), user.getEmail(), user.getUsername(), user.getRole());
+        return new UserDto(
+                user.getId(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getRole(),
+                user.getBio(),
+                user.getWebsite(),
+                user.getLocation()
+        );
     }
 }
