@@ -15,6 +15,7 @@ import org.springframework.cloud.client.circuitbreaker.CircuitBreaker;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,16 +42,22 @@ public class Convert {
                 .publishedAt(post.getPublishedAt())
                 .build();
 
-        // Загружаем медиа
-        List<PostMediaDto> mediaDtos = post.getMedia().stream()
-                .map(this::convertToMediaDto)
-                .collect(Collectors.toList());
+        // Загружаем медиа, проверяя на null
+        List<PostMediaDto> mediaDtos = new ArrayList<>();
+        if (post.getMedia() != null) {
+            mediaDtos = post.getMedia().stream()
+                    .map(this::convertToMediaDto)
+                    .collect(Collectors.toList());
+        }
         dto.setMedia(mediaDtos);
 
-        // Загружаем задачи публикации
-        List<SocialPostTaskDto> taskDtos = post.getSocialTasks().stream()
-                .map(this::convertToTaskDto)
-                .collect(Collectors.toList());
+        // Загружаем задачи публикации, проверяя на null
+        List<SocialPostTaskDto> taskDtos = new ArrayList<>();
+        if (post.getSocialTasks() != null) {
+            taskDtos = post.getSocialTasks().stream()
+                    .map(this::convertToTaskDto)
+                    .collect(Collectors.toList());
+        }
         dto.setSocialTasks(taskDtos);
 
         return dto;

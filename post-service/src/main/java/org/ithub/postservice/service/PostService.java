@@ -52,10 +52,11 @@ public class PostService {
                 .title(postRequestDto.getTitle())
                 .content(postRequestDto.getContent())
                 .type(determinePostType(postRequestDto))
-                .socialTasks(new ArrayList<>()) // Явно указываем пустой список
                 .status(status)
                 .tags(postRequestDto.getTags())
                 .scheduledAt(postRequestDto.getScheduledAt())
+                .media(new ArrayList<>())       // Инициализируем пустыми списками
+                .socialTasks(new ArrayList<>()) // Явно указываем пустые списки
                 .build();
 
         Post savedPost = postRepository.save(post);
@@ -130,7 +131,6 @@ public class PostService {
                 }
 
                 SocialAccountDto account = accountOpt.get();
-
                 SocialPostTask task = SocialPostTask.builder()
                         .post(post)
                         .socialAccountId(accountId)

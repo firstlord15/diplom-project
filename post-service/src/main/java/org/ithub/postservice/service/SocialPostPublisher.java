@@ -150,6 +150,9 @@ public class SocialPostPublisher {
     }
 
     private boolean publishToTelegram(Post post, SocialPostTask task, SocialAccountDto account) {
+        log.info("Начинаем публикацию в Telegram для поста с ID {}", post.getId());
+        log.info("Данные аккаунта: {}", account);
+
         try {
             if (post.getMedia().isEmpty()) {
                 // Текстовый пост - используем social-integration-service
@@ -166,6 +169,8 @@ public class SocialPostPublisher {
                     // Добавляем дополнительную информацию о публикации
                     task.setExternalPostId("telegram_" + System.currentTimeMillis());
                 }
+
+                log.info("Результат публикации в Telegram: {}", success);
                 return success;
             } else {
                 // Пост с медиа
@@ -228,6 +233,7 @@ public class SocialPostPublisher {
                     }
                 }
 
+                log.info("Результат публикации в Telegram: {}", success);
                 return success;
             }
         } catch (Exception e) {
