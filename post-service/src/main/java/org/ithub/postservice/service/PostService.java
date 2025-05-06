@@ -75,12 +75,13 @@ public class PostService {
         }
 
         // Публикуем сразу, если не запланировано
-        if (savedPost.getStatus() != PostStatus.SCHEDULED && !savedPost.getSocialTasks().isEmpty() ) {
-            socialPostPublisher.publishPost(savedPost.getId());
-            savedPost.setStatus(PostStatus.PUBLISHED);
-            savedPost.setPublishedAt(LocalDateTime.now());
-            savedPost = postRepository.save(savedPost);
-        }
+//        if (savedPost.getStatus() != PostStatus.SCHEDULED && !savedPost.getSocialTasks().isEmpty() ) {
+//            socialPostPublisher.publishPost(savedPost.getId());
+//            savedPost = postRepository.findById(savedPost.getId()).orElseThrow();
+//            savedPost.setStatus(PostStatus.PUBLISHED);
+//            savedPost.setPublishedAt(LocalDateTime.now());
+//            savedPost = postRepository.save(savedPost);
+//        }
 
         return convert.convertToResponseDto(savedPost);
     }

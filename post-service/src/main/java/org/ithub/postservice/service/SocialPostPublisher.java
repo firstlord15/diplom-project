@@ -120,27 +120,6 @@ public class SocialPostPublisher {
         return convert.convertToResponseDto(savedPost);
     }
 
-    // для чего
-//    private boolean sendTelegramMedia(String chatId, Resource media, String caption, SocialPostTask task, String method, String fileFieldName) {
-//        int messageId = sendFile(chatId, media, caption, method, fileFieldName);
-//
-//        if (messageId > 0) { // -1 или 0 означают ошибку
-//            // Обновляем информацию в задаче
-//            task.setExternalPostId(String.valueOf(messageId));
-//
-//            // Создаем URL для публичных каналов/групп
-//            if (chatId.startsWith("-100")) { // Публичный канал/группа
-//                String publicChatId = chatId.substring(4); // Убираем "-100" префикс
-//                task.setExternalPostUrl("https://t.me/c/" + publicChatId + "/" + messageId);
-//            }
-//            return true;
-//        } else {
-//            // Устанавливаем сообщение об ошибке
-//            task.setErrorMessage("Failed to send " + fileFieldName + " to Telegram");
-//            return false;
-//        }
-//    }
-
     private boolean publishToSocialPlatform(Post post, SocialPostTask task, SocialAccountDto account) {
         return switch (task.getPlatform()) {
             case TELEGRAM -> publishToTelegram(post, task, account);
@@ -164,7 +143,7 @@ public class SocialPostPublisher {
                 // Вызов social-integration-service через REST
                 Map<String, Boolean> response = socialClient.publishText(request);
 
-                boolean success = response.isEmpty() && Boolean.TRUE.equals(response.get("success"));
+                boolean success = !response.isEmpty() && Boolean.TRUE.equals(response.get("success"));
                 if (success) {
                     // Добавляем дополнительную информацию о публикации
                     task.setExternalPostId("telegram_" + System.currentTimeMillis());
