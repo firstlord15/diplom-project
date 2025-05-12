@@ -13,6 +13,8 @@ import java.util.List;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
+    long countByAuthorId(Long authorId);
+
     Page<Post> findByAuthorId(Long authorId, Pageable pageable);
 
     Page<Post> findByAuthorIdAndStatus(Long authorId, PostStatus status, Pageable pageable);

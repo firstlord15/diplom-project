@@ -1,5 +1,6 @@
 package org.ithub.socialintegrationservice.controller;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.ithub.socialintegrationservice.dto.LinkSocialAccountRequest;
 import org.ithub.socialintegrationservice.model.SocialAccount;
@@ -7,7 +8,9 @@ import org.ithub.socialintegrationservice.service.SocialAccountService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/social")
@@ -21,9 +24,16 @@ public class SocialAccountController {
     }
 
     @GetMapping("/{userId}/{platform}")
-    public ResponseEntity<SocialAccount> getAccount(@PathVariable Long userId, @PathVariable String platform) {
-        return ResponseEntity.ok(service.getAccount(userId, platform));
+    public ResponseEntity<Object> getAccount(@PathVariable Long userId, @PathVariable String platform) {
+        try {
+            SocialAccount account = service.getAccount(userId, platform);
+            return ResponseEntity.ok(Objects.requireNonNullElse(account, Collections.emptyList()));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
+
+
 
     @DeleteMapping("/{userId}/{platform}")
     public ResponseEntity<Void> deleteAccount(@PathVariable Long userId, @PathVariable String platform) {
@@ -31,8 +41,13 @@ public class SocialAccountController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{userId}/{platform}/toggle")
+    public ResponseEntity<SocialAccount> toggleAccountStatus(@PathVariable Long userId, @PathVariable String platform) {
+        return ResponseEntity.ok(service.toggleAccount(userId, platform));
+    }
+
     @GetMapping("/active/{userId}")
-    public ResponseEntity<List<SocialAccount>> getActiveAccounts(@PathVariable Long userId) {
+    public ResponseEntity<List<SocialAccount>> getActiveAccount(@PathVariable Long userId) {
         return ResponseEntity.ok(service.getActiveAccountsForUser(userId));
     }
 

@@ -86,6 +86,10 @@ public class PostService {
         return convert.convertToResponseDto(savedPost);
     }
 
+    public long getPostsCountByUser(Long userId) {
+        return postRepository.countByAuthorId(userId);
+    }
+
     private List<PostMedia> createPostMediaList(Post post, PostRequestDto dto) {
         List<PostMedia> mediaList = new ArrayList<>();
 

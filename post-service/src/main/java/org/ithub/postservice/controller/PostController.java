@@ -33,6 +33,13 @@ public class PostController {
         return new ResponseEntity<>(postService.createPost(userId, requestDto), HttpStatus.CREATED);
     }
 
+    @GetMapping("/count/{userId}")
+    @Operation(summary = "Получение количества постов пользователя")
+    public ResponseEntity<Long> getUserPostsCount(@PathVariable Long userId) {
+        log.info("Getting post count for user {}", userId);
+        return ResponseEntity.ok(postService.getPostsCountByUser(userId));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Получение поста по ID")
     public ResponseEntity<PostResponseDto> getPostById(@PathVariable Long id) {
